@@ -210,6 +210,10 @@ class ofp_flow_mod(ofp_header):
         else:
             return False
     """
+    def check_rules_from_file(self):
+        
+
+
     def check_rules(self):
         connect_db = connectDB.get_QoS_setting();
         connect_db.select_qosSetting_fgbamDB()
@@ -593,9 +597,11 @@ class communication_SwCtrler(threading.Thread):
                             flowmod_msg = ofp_flow_mod(data_from_controller)
                             flowmod_msg.unpack()
 
-
+                            #check between income message and rules
                             flag1,rule = flowmod_msg.check_rules()
                             if flag1:
+                                # check message has been added or not
+                                # if message is added, flag2 is true
                                 flag2,queue_id = self.isAdded(rule)
                             
 
@@ -612,7 +618,7 @@ class communication_SwCtrler(threading.Thread):
                             if flag1 and name_port is not None and (flowmod_msg.match.nw_proto == 6 or flowmod_msg.match.nw_proto == 17):
 
 
-
+                                #config queue in name_port
                                 if not flag2 and  flowmod_msg.status_id == 0:
                                     self.current_id ,queue_id,uuid_queue = callovsdb.create_queue(name_port,rule.bandwidth,self.current_id,str(self.ip),6640)
                                     logging.info('create queue: '+str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time()) +' queue#' + str(queue_id) + ' in ' + str(name_port))
