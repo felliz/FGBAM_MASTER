@@ -211,7 +211,32 @@ class ofp_flow_mod(ofp_header):
             return False
     """
     def check_rules_from_file(self):
-        
+        f = open("rule_config.conf","r")
+        flag = True
+        for line in f:
+            #src_ip|dst_ip|src_port|dst_port|bw
+            rule_in_line = line.split("|")
+            if rule_in_line[1] == self.match.nw_src:
+                flag = True
+                if rule_in_line[2] == self.match.nw_dst:
+                    flag = True
+                    if rule_in_line[3] == self.match.nw_proto:
+                        flag = True
+                        if rule_in_line[4] == self.match.tp_src:
+                            flag = True
+                            if rule_in_line[5] == self.match.tp_dst:
+                                flag = True
+                            else:
+                                flag = False
+                        else:
+                            flag = False
+                    else:
+                        flag = False
+                else:
+                    flag = False
+            else:
+                flag = False
+        return  flag
 
 
     def check_rules(self):
@@ -598,68 +623,71 @@ class communication_SwCtrler(threading.Thread):
                             flowmod_msg.unpack()
 
                             #check between income message and rules
-                            flag1,rule = flowmod_msg.check_rules()
-                            if flag1:
-                                # check message has been added or not
-                                # if message is added, flag2 is true
-                                flag2,queue_id = self.isAdded(rule)
+                            # flag1,rule = flowmod_msg.check_rules()
+
+                            inRules = flowmod_msg.check_rules_from_file()
+
+                            # if inRules:
+                            #     # check message has been added or not
+                            #     # if message is added, flag2 is true
+                            #     flag2,queue_id = self.isAdded(rule)
                             
 
-                            print 'flag1: ' + str(flag1)
-                            print 'flag2: ' + str(flag2)
+                            # print 'flag1: ' + str(flag1)
+                            # print 'flag2: ' + str(flag2)
 
                             if flowmod_msg.actions:
                                 name_port = self.match_nameport(flowmod_msg.actions[0].out_port)
 
                             #flag,rule_inverse = self.isInverse(flowmod_msg)
                             #print 'flag: ' + str(flag)
-                            update_db = connectDB.get_QoS_setting()
+                            # update_db = connectDB.get_QoS_setting()
 
-                            if flag1 and name_port is not None and (flowmod_msg.match.nw_proto == 6 or flowmod_msg.match.nw_proto == 17):
+                            if inRules and name_port is not None and (flowmod_msg.match.nw_proto == 6 or flowmod_msg.match.nw_proto == 17):
 
 
                                 #config queue in name_port
-                                if not flag2 and  flowmod_msg.status_id == 0:
-                                    self.current_id ,queue_id,uuid_queue = callovsdb.create_queue(name_port,rule.bandwidth,self.current_id,str(self.ip),6640)
-                                    logging.info('create queue: '+str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time()) +' queue#' + str(queue_id) + ' in ' + str(name_port))
-                                    r = Rules(rule.protocol_id,rule.src_ip,rule.dst_ip,rule.proto,rule.src_port,rule.dst_port,rule.bandwidth,queue_id,uuid_queue)
+                                # if not flag2 and  flowmod_msg.status_id == 0:
+                                #     self.current_id ,queue_id,uuid_queue = callovsdb.create_queue(name_port,rule.bandwidth,self.current_id,str(self.ip),6640)
+                                #     logging.info('create queue: '+str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time()) +' queue#' + str(queue_id) + ' in ' + str(name_port))
+                                #     r = Rules(rule.protocol_id,rule.src_ip,rule.dst_ip,rule.proto,rule.src_port,rule.dst_port,rule.bandwidth,queue_id,uuid_queue)
+                                #
+                                #     #r = Rules(rule.protocol_id,flowmod_msg.match.nw_src,flowmod_msg.match.nw_dst,flowmod_msg.match.nw_proto,flowmod_msg.match.tp_src,flowmod_msg.match.tp_dst,rule.bandwidth,queue_id,uuid_queue)
+                                #     logging.info(str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time())+ ' ' +str(r) )
+                                #     self.list_rule_added.append(r)
+                                #
+                                # elif flowmod_msg.status_id == 1:
+                                #     print "DELETE"
+                                #     temp,queue_id = self.onProcessed(rule,"delete")
+                                #
+                                #     if temp:
+                                #         for _port in self.list_ports:
+                                #             if str(_port.number) == str(flowmod_msg.actions[0].out_port):
+                                #                 callovsdb.delete_queue(queue_id,_port.name,1,str(self.ip),6640)
+                                #                 break
+                                #
+                                #     queue_id = 0
 
-                                    #r = Rules(rule.protocol_id,flowmod_msg.match.nw_src,flowmod_msg.match.nw_dst,flowmod_msg.match.nw_proto,flowmod_msg.match.tp_src,flowmod_msg.match.tp_dst,rule.bandwidth,queue_id,uuid_queue)
-                                    logging.info(str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time())+ ' ' +str(r) )
-                                    self.list_rule_added.append(r)
-
-                                elif flowmod_msg.status_id == 1:
-                                    print "DELETE"
-                                    temp,queue_id = self.onProcessed(rule,"delete")
-
-                                    if temp:
-                                        for _port in self.list_ports:
-                                            if str(_port.number) == str(flowmod_msg.actions[0].out_port):
-                                                callovsdb.delete_queue(queue_id,_port.name,1,str(self.ip),6640)
-                                                break
-
-                                    queue_id = 0
 
 
-
-                                elif flowmod_msg.status_id == 2:
-                                    print "UPDATE"
-                                    flag_on_process = self.onProcessed(rule,"update")
-                                    #print "flag_on_prosses: " + str(flag_on_process)
-
-                                    if flag_on_process:
-                                        #print "On Process!!!!"
-                                        rule_update = self.update_list_rule_added(rule)
-                                        callovsdb.update_queue(rule_update.uuid_queue,rule_update.bandwidth,rule_update.bandwidth,1,str(self.ip),6640)
-                                        queue_id = rule_update.queue_id
-
-                                    else:
-                                        self.current_id ,queue_id,uuid_queue = callovsdb.create_queue(name_port,rule.bandwidth,self.current_id,str(self.ip),6640)
-                                        logging.info('create queue: '+str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time()) +' queue#' + str(queue_id) + ' in ' + str(name_port))
-
-                                        r = Rules(rule.protocol_id,flowmod_msg.match.nw_src,flowmod_msg.match.nw_dst,flowmod_msg.match.nw_proto,flowmod_msg.match.tp_src,flowmod_msg.match.tp_dst,rule.bandwidth,queue_id,uuid_queue)
-                                        logging.info(str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time())+ ' ' +str(r) )
-                                        self.list_rule_added.append(r)
+                                # elif flowmod_msg.status_id == 2:
+                                #     print "UPDATE"
+                                #     flag_on_process = self.onProcessed(rule,"update")
+                                #     #print "flag_on_prosses: " + str(flag_on_process)
+                                #
+                                #     if flag_on_process:
+                                #         #print "On Process!!!!"
+                                #         rule_update = self.update_list_rule_added(rule)
+                                #         callovsdb.update_queue(rule_update.uuid_queue,rule_update.bandwidth,rule_update.bandwidth,1,str(self.ip),6640)
+                                #         queue_id = rule_update.queue_id
+                                #
+                                #     else:
+                                #         self.current_id ,queue_id,uuid_queue = callovsdb.create_queue(name_port,rule.bandwidth,self.current_id,str(self.ip),6640)
+                                #         logging.info('create queue: '+str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time()) +' queue#' + str(queue_id) + ' in ' + str(name_port))
+                                #
+                                #         r = Rules(rule.protocol_id,flowmod_msg.match.nw_src,flowmod_msg.match.nw_dst,flowmod_msg.match.nw_proto,flowmod_msg.match.tp_src,flowmod_msg.match.tp_dst,rule.bandwidth,queue_id,uuid_queue)
+                                #         logging.info(str(datetime.datetime.now().date())+' '+str(datetime.datetime.now().time())+ ' ' +str(r) )
+                                #         self.list_rule_added.append(r)
 
                                 print queue_id
                                 enqueue_msg = ofp_action_enqueue(flowmod_msg.actions[0].out_port,queue_id)
