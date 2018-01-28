@@ -692,10 +692,10 @@ class communication_SwCtrler(threading.Thread):
                                 print queue_id
                                 enqueue_msg = ofp_action_enqueue(flowmod_msg.actions[0].out_port,queue_id)
 
-                                for _port in self.list_ports:
-                                    if str(_port.number) == str(flowmod_msg.actions[0].out_port):
-                                        if self.isIP(_port.neighbor):
-                                            update_db.update_qosSetting_fgbamDB(rule.protocol_id)
+                                # for _port in self.list_ports:
+                                #     if str(_port.number) == str(flowmod_msg.actions[0].out_port):
+                                #         if self.isIP(_port.neighbor):
+                                #             update_db.update_qosSetting_fgbamDB(rule.protocol_id)
 
                                 new_ofp_header = ofp_header()
                                 new_ofp_header.version = 1
